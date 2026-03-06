@@ -526,7 +526,8 @@
     <!-- UPLOAD -->
     <div id="panel-upload" class="admin-panel active">
       <div class="add-prop-form">
-        <h3>📸 Nouveau Bien Immobilier</h3>
+        <h3 id="form-title">📸 Nouveau Bien Immobilier</h3>
+        <input type="hidden" id="p-id">
         <div class="upload-zone" id="uploadZone"
           onclick="document.getElementById('imgInput').click()"
           ondragover="event.preventDefault();this.classList.add('dragover')"
@@ -565,7 +566,7 @@
           <label style="text-transform:none;letter-spacing:0;color:var(--text);font-size:14px" for="p-premium">⭐ Marquer comme Premium</label>
         </div>
         <div style="display:flex;gap:12px;flex-wrap:wrap">
-          <button class="btn btn-gold" onclick="publierBien()" style="flex:1;justify-content:center;padding:14px"><i class="fas fa-plus-circle"></i> Publier le Bien</button>
+          <button class="btn btn-gold" id="btn-publier" onclick="publierBien()" style="flex:1;justify-content:center;padding:14px"><i class="fas fa-plus-circle"></i> <span id="btn-text">Publier le Bien</span></button>
           <button class="btn btn-outline" onclick="resetForm()" style="padding:14px 20px"><i class="fas fa-redo"></i></button>
         </div>
         <div id="pub-status" style="margin-top:16px;display:none"></div>
@@ -672,6 +673,8 @@ async function doLogin() {
 
     if (res.ok) {
       okEl.style.display = 'flex';
+      document.getElementById('loginEmail').value = '';
+      document.getElementById('loginPwd').value = '';
       document.getElementById('nav-login-btn').style.display = 'none';
       document.getElementById('nav-admin-btns').style.display = 'flex';
       document.getElementById('mob-login').style.display = 'none';
@@ -859,6 +862,7 @@ function removeImg(i) {
 //  PUBLIER UN BIEN
 // ═══════════════════════════════════════════════
 async function publierBien() {
+  const id    = document.getElementById('p-id').value;
   const titre = document.getElementById('p-titre').value.trim();
   const loc   = document.getElementById('p-loc').value.trim();
   const prix  = document.getElementById('p-prix').value.trim();
@@ -882,13 +886,16 @@ async function publierBien() {
   };
 
   const statusEl = document.getElementById('pub-status');
-  statusEl.innerHTML = '<span style="color:var(--gold)"><i class="fas fa-spinner fa-spin"></i> Publication en cours…</span>';
+  const method   = id ? 'PUT' : 'POST';
+  const urlSuffix = id ? `/${id}` : '';
+  
+  statusEl.innerHTML = `<span style="color:var(--gold)"><i class="fas fa-spinner fa-spin"></i> ${id ? 'Modification' : 'Publication'} en cours…</span>`;
   statusEl.style.display = 'block';
 
   try {
-    // 1. Créer le bien
-    const res  = await fetch(`${API}/biens`, {
-      method: 'POST',
+    // 1. Créer ou Modifier le bien
+    const res  = await fetch(`${API}/biens${urlSuffix}`, {
+      method: method,
       headers: {'Content-Type':'application/json'},
       credentials: 'include',
       body: JSON.stringify(body)
@@ -900,23 +907,26 @@ async function publierBien() {
       return;
     }
 
-    const bienId = data.id;
+    const bienId = id || data.id;
 
-    // 2. Uploader les images
-    for (const file of uploadedFiles) {
-      const fd = new FormData();
-      fd.append('fichier', file);
-      await fetch(`${API}/biens/${bienId}/images`, {
-        method: 'POST',
-        credentials: 'include',
-        body: fd
-      });
+    // 2. Uploader les images (si nouvelles images)
+    if (uploadedFiles.length > 0) {
+      for (const file of uploadedFiles) {
+        const fd = new FormData();
+        fd.append('fichier', file);
+        await fetch(`${API}/biens/${bienId}/images`, {
+          method: 'POST',
+          credentials: 'include',
+          body: fd
+        });
+      }
     }
 
-    statusEl.innerHTML = `<span style="color:var(--green)"><i class="fas fa-check-circle"></i> Bien publié avec succès ! (ID: ${bienId})</span>`;
-    showToast('✅ Bien publié avec succès !');
+    statusEl.innerHTML = `<span style="color:var(--green)"><i class="fas fa-check-circle"></i> Bien ${id ? 'modifié' : 'publié'} avec succès !</span>`;
+    showToast(`✅ Bien ${id ? 'modifié' : 'publié'} avec succès !`);
     resetForm();
     chargerStats();
+    if (id) switchTab('list', document.querySelectorAll('.admin-tab')[1]);
 
   } catch(e) {
     statusEl.innerHTML = `<span style="color:var(--red)"><i class="fas fa-exclamation-triangle"></i> Serveur inaccessible.</span>`;
@@ -924,6 +934,11 @@ async function publierBien() {
 }
 
 function resetForm() {
+  document.getElementById('p-id').value = '';
+  document.getElementById('form-title').innerHTML = '📸 Nouveau Bien Immobilier';
+  document.getElementById('btn-text').textContent = 'Publier le Bien';
+  document.getElementById('btn-publier').querySelector('i').className = 'fas fa-plus-circle';
+  
   ['p-titre','p-loc','p-prix','p-surface','p-ch','p-sdb','p-desc'].forEach(id => {
     document.getElementById(id).value = '';
   });
@@ -931,6 +946,40 @@ function resetForm() {
   uploadedFiles = [];
   renderPreviews();
   document.getElementById('pub-status').style.display = 'none';
+}
+
+async function editerBien(id) {
+  try {
+    const res = await fetch(`${API}/biens/${id}`, {credentials:'include'});
+    const p = await res.json();
+    
+    if (!res.ok) { showToast('❌ Erreur: ' + p.erreur); return; }
+
+    // Remplir le formulaire
+    document.getElementById('p-id').value = p.id;
+    document.getElementById('p-titre').value = p.titre;
+    document.getElementById('p-type').value = p.type;
+    document.getElementById('p-loc').value = p.localisation;
+    document.getElementById('p-op').value = p.operation;
+    document.getElementById('p-prix').value = p.prix;
+    document.getElementById('p-surface').value = p.surface || '';
+    document.getElementById('p-ch').value = p.chambres || '';
+    document.getElementById('p-sdb').value = p.salles_bain || '';
+    document.getElementById('p-desc').value = p.description || '';
+    document.getElementById('p-premium').checked = (p.premium == 1);
+    
+    // UI Update
+    document.getElementById('form-title').innerHTML = '✏️ Modifier le Bien';
+    document.getElementById('btn-text').textContent = 'Enregistrer les modifications';
+    document.getElementById('btn-publier').querySelector('i').className = 'fas fa-save';
+    
+    // Switch to upload tab
+    switchTab('upload', document.querySelectorAll('.admin-tab')[0]);
+    window.scrollTo(0,0);
+    
+  } catch(e) {
+    showToast('❌ Erreur serveur lors de la récupération.');
+  }
 }
 
 // ═══════════════════════════════════════════════
@@ -956,7 +1005,7 @@ async function chargerBiensAdmin() {
         <td><span class="status-active">Actif</span></td>
         <td>
           <div style="display:flex;gap:6px">
-            <button class="icon-btn" onclick="showToast('✏️ Modification bientôt…')" title="Modifier"><i class="fas fa-edit"></i></button>
+            <button class="icon-btn" onclick="editerBien(${p.id})" title="Modifier"><i class="fas fa-edit"></i></button>
             <button class="icon-btn" style="border-color:rgba(232,93,74,.3);color:var(--red)" onclick="supprimerBien(${p.id})" title="Supprimer"><i class="fas fa-trash"></i></button>
           </div>
         </td>
