@@ -2263,44 +2263,42 @@
     // ═══════════════════════════════════════════════
     //  AUTHENTIFICATION
     // ═══════════════════════════════════════════════
-    function doLogin() {
+    async function doLogin() {
       const email = document.getElementById('loginEmail').value.trim();
       if (!email) { showToast('⚠️ Veuillez entrer votre email.'); return; }
 
-      demanderConfirmation(`Voulez-vous vous connecter en tant que ${email} ?`, async () => {
-        const pwd = document.getElementById('loginPwd').value;
-        const errEl = document.getElementById('loginError');
-        const okEl = document.getElementById('loginSuccess');
+      const pwd = document.getElementById('loginPwd').value;
+      const errEl = document.getElementById('loginError');
+      const okEl = document.getElementById('loginSuccess');
 
-        errEl.style.display = 'none';
-        okEl.style.display = 'none';
+      errEl.style.display = 'none';
+      okEl.style.display = 'none';
 
-        try {
-          const res = await fetch(`${API}/connexion`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ email, mot_passe: pwd })
-          });
-          const data = await res.json();
+      try {
+        const res = await fetch(`${API}/connexion`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ email, mot_passe: pwd })
+        });
+        const data = await res.json();
 
-          if (res.ok) {
-            okEl.style.display = 'flex';
-            document.getElementById('loginEmail').value = '';
-            document.getElementById('loginPwd').value = '';
-            document.getElementById('nav-login-btn').style.display = 'none';
-            document.getElementById('nav-admin-btns').style.display = 'flex';
-            document.getElementById('mob-login').style.display = 'none';
-            setTimeout(() => showPage('admin'), 800);
-          } else {
-            errEl.querySelector('span').textContent = data.erreur || 'Erreur de connexion.';
-            errEl.style.display = 'flex';
-          }
-        } catch (e) {
-          errEl.querySelector('span').textContent = '⚠️ Serveur inaccessible. Vérifiez que Flask est démarré.';
+        if (res.ok) {
+          okEl.style.display = 'flex';
+          document.getElementById('loginEmail').value = '';
+          document.getElementById('loginPwd').value = '';
+          document.getElementById('nav-login-btn').style.display = 'none';
+          document.getElementById('nav-admin-btns').style.display = 'flex';
+          document.getElementById('mob-login').style.display = 'none';
+          setTimeout(() => showPage('admin'), 800);
+        } else {
+          errEl.querySelector('span').textContent = data.erreur || 'Erreur de connexion.';
           errEl.style.display = 'flex';
         }
-      });
+      } catch (e) {
+        errEl.querySelector('span').textContent = '⚠️ Serveur inaccessible. Vérifiez que Flask est démarré.';
+        errEl.style.display = 'flex';
+      }
     }
 
     async function deconnecter() {
