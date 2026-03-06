@@ -2265,11 +2265,14 @@
     // ═══════════════════════════════════════════════
     async function doLogin() {
       const email = document.getElementById('loginEmail').value.trim();
-      if (!email) { showToast('⚠️ Veuillez entrer votre email.'); return; }
-
       const pwd = document.getElementById('loginPwd').value;
       const errEl = document.getElementById('loginError');
       const okEl = document.getElementById('loginSuccess');
+
+      if (!email || !pwd) {
+        showToast('⚠️ Email et mot de passe requis.');
+        return;
+      }
 
       errEl.style.display = 'none';
       okEl.style.display = 'none';
@@ -2283,7 +2286,7 @@
         });
         const data = await res.json();
 
-        if (res.ok) {
+        if (res.ok && data.succes) {
           okEl.style.display = 'flex';
           document.getElementById('loginEmail').value = '';
           document.getElementById('loginPwd').value = '';
@@ -2292,7 +2295,7 @@
           document.getElementById('mob-login').style.display = 'none';
           setTimeout(() => showPage('admin'), 800);
         } else {
-          errEl.querySelector('span').textContent = data.erreur || 'Erreur de connexion.';
+          errEl.querySelector('span').textContent = data.erreur || 'Email ou mot de passe incorrect.';
           errEl.style.display = 'flex';
         }
       } catch (e) {
