@@ -2236,6 +2236,12 @@
         chargerStats();
         chargerBiensAdmin();
       }
+      if (page === 'login') {
+        document.getElementById('loginEmail').value = '';
+        document.getElementById('loginPwd').value = '';
+        document.getElementById('loginError').style.display = 'none';
+        document.getElementById('loginSuccess').style.display = 'none';
+      }
     }
 
     function toggleMobile() {
@@ -2297,10 +2303,12 @@
         } else {
           errEl.querySelector('span').textContent = data.erreur || 'Email ou mot de passe incorrect.';
           errEl.style.display = 'flex';
+          document.getElementById('loginPwd').value = '';
         }
       } catch (e) {
         errEl.querySelector('span').textContent = '⚠️ Serveur inaccessible. Vérifiez que Flask est démarré.';
         errEl.style.display = 'flex';
+        document.getElementById('loginPwd').value = '';
       }
     }
 
