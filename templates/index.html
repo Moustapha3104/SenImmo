@@ -1641,6 +1641,79 @@
         grid-template-columns: 1fr 1fr
       }
     }
+
+    /* ── CONFIRM MODAL ── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      animation: fadeIn .3s ease
+    }
+
+    .modal-content {
+      background: var(--dark2);
+      padding: 40px;
+      border-radius: 24px;
+      border: 1px solid var(--gold);
+      text-align: center;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 40px 80px rgba(0, 0, 0, .6);
+      animation: scaleUp .3s ease
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0
+      }
+
+      to {
+        opacity: 1
+      }
+    }
+
+    @keyframes scaleUp {
+      from {
+        transform: scale(.9);
+        opacity: 0
+      }
+
+      to {
+        transform: scale(1);
+        opacity: 1
+      }
+    }
+
+    .modal-icon {
+      font-size: 48px;
+      color: var(--gold);
+      margin-bottom: 20px
+    }
+
+    .modal-content h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 24px;
+      color: var(--white);
+      margin-bottom: 12px
+    }
+
+    .modal-content p {
+      color: var(--text-muted);
+      font-size: 15px;
+      line-height: 1.6;
+      margin-bottom: 32px
+    }
+
+    .modal-btns {
+      display: flex;
+      gap: 12px;
+      justify-content: center
+    }
   </style>
 </head>
 
@@ -1943,15 +2016,15 @@
       <div class="login-error" id="loginError"><i class="fas fa-exclamation-circle"></i><span id="loginErrMsg">Email ou
           mot de passe incorrect.</span></div>
       <div class="login-success" id="loginSuccess"><i class="fas fa-check-circle"></i> Connexion réussie !</div>
-      <div class="form-group"><label>Email</label><input type="email" id="loginEmail" placeholder="admin@senimmo.sn"
+      <div class="form-group"><label>Email</label><input type="email" id="loginEmail" placeholder=""
           onkeydown="if(event.key==='Enter')doLogin()"></div>
-      <div class="form-group"><label>Mot de passe</label><input type="password" id="loginPwd" placeholder="••••••••"
+      <div class="form-group"><label>Mot de passe</label><input type="password" id="loginPwd" placeholder=""
           onkeydown="if(event.key==='Enter')doLogin()"></div>
       <button class="btn btn-gold" style="width:100%;justify-content:center;padding:14px;margin-bottom:16px"
         onclick="doLogin()">
         <i class="fas fa-sign-in-alt"></i> Se Connecter
       </button>
-      <p style="text-align:center;font-size:12px;color:var(--text-muted)">Démo : admin@senimmo.sn / admin123</p>
+      <p style="text-align:center;font-size:12px;color:var(--text-muted)"></p>
       <p style="text-align:center;font-size:13px;color:var(--text-muted);margin-top:16px"><a
           style="color:var(--gold);cursor:pointer" onclick="showPage('home')">← Retour au site</a></p>
     </div>
@@ -2105,6 +2178,19 @@
   <!-- Toast -->
   <div class="toast" id="toast"><i class="fas fa-check-circle"></i><span id="toastMsg"></span></div>
 
+  <!-- Confirm Modal -->
+  <div id="confirmModal" class="modal-overlay" style="display:none">
+    <div class="modal-content">
+      <div class="modal-icon"><i class="fas fa-question-circle"></i></div>
+      <h3 id="confirmTitle">Confirmation</h3>
+      <p id="confirmMessage"></p>
+      <div class="modal-btns">
+        <button class="btn btn-gold" id="confirmOui" style="min-width:100px;justify-content:center">Oui</button>
+        <button class="btn btn-outline" id="confirmNon" style="min-width:100px;justify-content:center">Non</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     // ═══════════════════════════════════════════════
     //  CONFIG API — Pointe vers votre serveur Flask
@@ -2157,51 +2243,75 @@
     }
 
     // ═══════════════════════════════════════════════
+    //  CONFIRMATION MODAL UTILS
+    // ═══════════════════════════════════════════════
+    function demanderConfirmation(msg, onOui) {
+      document.getElementById('confirmMessage').textContent = msg;
+      const modal = document.getElementById('confirmModal');
+      modal.style.display = 'flex';
+
+      const btnOui = document.getElementById('confirmOui');
+      const btnNon = document.getElementById('confirmNon');
+
+      const close = () => { modal.style.display = 'none'; };
+
+      btnOui.onclick = () => { onOui(); close(); };
+      btnNon.onclick = close;
+      modal.onclick = (e) => { if (e.target === modal) close(); };
+    }
+
+    // ═══════════════════════════════════════════════
     //  AUTHENTIFICATION
     // ═══════════════════════════════════════════════
-    async function doLogin() {
+    function doLogin() {
       const email = document.getElementById('loginEmail').value.trim();
-      const pwd = document.getElementById('loginPwd').value;
-      const errEl = document.getElementById('loginError');
-      const okEl = document.getElementById('loginSuccess');
+      if (!email) { showToast('⚠️ Veuillez entrer votre email.'); return; }
 
-      errEl.style.display = 'none';
-      okEl.style.display = 'none';
+      demanderConfirmation(`Voulez-vous vous connecter en tant que ${email} ?`, async () => {
+        const pwd = document.getElementById('loginPwd').value;
+        const errEl = document.getElementById('loginError');
+        const okEl = document.getElementById('loginSuccess');
 
-      try {
-        const res = await fetch(`${API}/connexion`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ email, mot_passe: pwd })
-        });
-        const data = await res.json();
+        errEl.style.display = 'none';
+        okEl.style.display = 'none';
 
-        if (res.ok) {
-          okEl.style.display = 'flex';
-          document.getElementById('loginEmail').value = '';
-          document.getElementById('loginPwd').value = '';
-          document.getElementById('nav-login-btn').style.display = 'none';
-          document.getElementById('nav-admin-btns').style.display = 'flex';
-          document.getElementById('mob-login').style.display = 'none';
-          setTimeout(() => showPage('admin'), 800);
-        } else {
-          errEl.querySelector('span').textContent = data.erreur || 'Erreur de connexion.';
+        try {
+          const res = await fetch(`${API}/connexion`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ email, mot_passe: pwd })
+          });
+          const data = await res.json();
+
+          if (res.ok) {
+            okEl.style.display = 'flex';
+            document.getElementById('loginEmail').value = '';
+            document.getElementById('loginPwd').value = '';
+            document.getElementById('nav-login-btn').style.display = 'none';
+            document.getElementById('nav-admin-btns').style.display = 'flex';
+            document.getElementById('mob-login').style.display = 'none';
+            setTimeout(() => showPage('admin'), 800);
+          } else {
+            errEl.querySelector('span').textContent = data.erreur || 'Erreur de connexion.';
+            errEl.style.display = 'flex';
+          }
+        } catch (e) {
+          errEl.querySelector('span').textContent = '⚠️ Serveur inaccessible. Vérifiez que Flask est démarré.';
           errEl.style.display = 'flex';
         }
-      } catch (e) {
-        errEl.querySelector('span').textContent = '⚠️ Serveur inaccessible. Vérifiez que Flask est démarré.';
-        errEl.style.display = 'flex';
-      }
+      });
     }
 
     async function deconnecter() {
-      await fetch(`${API}/deconnexion`, { method: 'POST', credentials: 'include' }).catch(() => { });
-      document.getElementById('nav-login-btn').style.display = '';
-      document.getElementById('nav-admin-btns').style.display = 'none';
-      document.getElementById('mob-login').style.display = '';
-      showPage('home');
-      showToast('👋 Vous êtes déconnecté(e).');
+      demanderConfirmation('Voulez-vous vraiment vous déconnecter ?', async () => {
+        await fetch(`${API}/deconnexion`, { method: 'POST', credentials: 'include' }).catch(() => { });
+        document.getElementById('nav-login-btn').style.display = '';
+        document.getElementById('nav-admin-btns').style.display = 'none';
+        document.getElementById('mob-login').style.display = '';
+        showPage('home');
+        showToast('👋 Vous êtes déconnecté(e).');
+      });
     }
 
     // Vérifie si déjà connecté au chargement
